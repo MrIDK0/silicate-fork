@@ -1,41 +1,45 @@
-# Silicate
+# Silicate (Custom Fork)
 
-This is the main repository for the Silicate bot. 
+> **IMPORTANT NOTE:** This is an **unofficial custom fork** of the original Silicate bot. This repository is maintained independently and is not affiliated with the official Peony's Silicate project. Please do not report bugs found here to the official support channels.
+
+**Silicate** is an advanced, feature-rich macro bot and utility mod for Geometry Dash, built on top of the Geode framework. 
+
+---
+
+## Fork Exclusive Features
+
+Unlike the original bot, this fork includes a powerful custom implementation for dual-player macro management inside the **Record** tab:
+
+* **Load 1p** — Loads and plays inputs *only* from the first player of the macro.
+* **Load 2p** — Loads and plays inputs *only* from the second player of the macro.
+* **Macro Merging** — Allows you to load Player 1 inputs from one macro, switch files, load Player 2 inputs from another macro, and seamlessly **merge them together** into a single dual-player macro inside the UI, ready to be saved.
+
+---
 
 ## Versioning
 
-Currently the bot is in **alpha**, which means we use `1.0.0-alpha.XX` builds.
-When releasing a beta build, use `1.0.0-beta.XX` builds.
+Currently, the bot is in **alpha**, utilizing `1.0.0-alpha.XX` builds.
+* Beta releases will use `1.0.0-beta.XX`.
+* Upon full release, the project will migrate to a calendar-based versioning system (e.g., `2026.01-01` for the first build in January 2026).
 
-Upon release, we will migrate to a different versioning system - preferably something like `2026.01-01` for the first build in January 2026.
+---
 
-## Structure
+## Repository Structure
 
-```
+```text
 src/
-    assist/ - Assist features, such as autoclicker or hitboxes.
-    bot/ - Core bot components.
-    checkpoint/ - The practice fix.
-    hooks/ - All of the hooks Silicate uses. Interacts with core game logic.
-    label/ - The label system for displaying overlays.
-    physics/ - Geometry Dash physics decomp for trajectory.
-    render/ - The renderer and DSP recorder.
-    replay/ - The replay system.
-    settings/ - The bot's settings module.
-    shared/ - Shared parts of the code, such as keybind logic.
-    trajectory/ - Simulation/trajectory logic.
-    ui/ - The interface.
-    util/ - Generic utilities, such as midhooking.
+    assist/       - Assist features (autoclicker, hitboxes, etc.)
+    bot/          - Core bot components
+    checkpoint/   - Practice mode fix implementation
+    hooks/        - Core game logic hooks
+    label/        - Overlays and text label rendering system
+    physics/      - Geometry Dash physics decompilation for accurate trajectory
+    render/       - Video renderer and DSP audio recorder
+    replay/       - Replay system and macro parsing (.slc3 format)
+    settings/     - Bot's internal settings module
+    shared/       - Shared utilities (e.g., keybind logic)
+    trajectory/   - Simulation and physics trajectory logic
+    ui/           - Mod interface and menu management
+    util/         - Generic utilities (midhooking tools, etc.)
 lib/
-    tabby/ - The UI library, based on ImGUI.
-```
-
-## Compiling
-
-1. Clone [`tabby`](https://github.com/silicate-bot/tabby) into lib/tabby. Make sure you're on the `legacy-v1` branch (until we migrate lol).
-2. Run `build.bat` or `build-rel.bat` if you're compiling for public use. (Use `build.sh` if you're on Linux!)
-
-## Contributing
-
-Please use feature branches. Use clang-format for formatting your code (unless it makes it horribly unreadable).
-Currently we do not have automated testing. Please test the features you're implementing/changing and related components before releasing builds.
+    tabby/        - Custom UI framework based on ImGui
