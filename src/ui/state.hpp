@@ -17,6 +17,7 @@ struct UIState {
         Edit,
         Render,
         Scripts,
+        Keybinds,
         Settings
     };
 

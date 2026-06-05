@@ -9,14 +9,13 @@
 #include "context/context.hpp"
 #include "render/renderer.hpp"
 #include "replay/system.hpp"
+#include "shared/key_names.hpp"
+#include "shared/value/value.hpp"
 #include "ui/manager.hpp"
 // this is horrible but it works
 #include "../../lib/tabby/lib/imgui_lib/imgui.h"
 
 using namespace geode::prelude;
-
-constexpr int KEY_MW_UP = 0x97;
-constexpr int KEY_MW_DOWN = 0x98;
 
 LRESULT CALLBACK h_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     bool shiftHeld = GetKeyState(VK_SHIFT) & 0x8000;
@@ -39,18 +38,28 @@ LRESULT CALLBACK h_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
                               wParam, lParam);
     }
 
+    auto* bindings = SLBindingManager::get();
+    bool capturing = bindings->isCapturing();
+
     if (Bot::get()->ui().m_state.m_visible->inner()) {
         ImGuiHookCtx::get().m_ctx.handleWndproc(hWnd, uMsg, wParam, lParam);
 
-        if (uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN || uMsg == WM_KEYUP ||
+        if (capturing) {
+            if (uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) {
+                if (bindings->tryCaptureKey(static_cast<int>(wParam), ctrlHeld,
+                                            shiftHeld, altHeld)) {
+                    return true;
+                }
+            }
+        } else if (uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN || uMsg == WM_KEYUP ||
             uMsg == WM_SYSKEYUP || uMsg == WM_CHAR) {
             if (ImGui::GetIO().WantCaptureKeyboard) {
                 return true;
             }
         }
 
-        if (uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN ||
-            uMsg == WM_MBUTTONDOWN || uMsg == WM_MOUSEWHEEL) {
+        if (!capturing && (uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN ||
+                           uMsg == WM_MBUTTONDOWN || uMsg == WM_MOUSEWHEEL)) {
             int key = wParam;
 
             if (uMsg == WM_MOUSEWHEEL) {
@@ -61,13 +70,12 @@ LRESULT CALLBACK h_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
                 }
             }
 
-            SLBindingManager::get()->processKeyEvent(key, true, ctrlHeld,
-                                                     shiftHeld, altHeld);
-        } else if (uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP ||
-                   uMsg == WM_MBUTTONUP) {
+            bindings->processKeyEvent(key, true, ctrlHeld, shiftHeld, altHeld);
+        } else if (!capturing &&
+                   (uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP ||
+                    uMsg == WM_MBUTTONUP)) {
             int key = wParam;
-            SLBindingManager::get()->processKeyEvent(key, false, ctrlHeld,
-                                                     shiftHeld, altHeld);
+            bindings->processKeyEvent(key, false, ctrlHeld, shiftHeld, altHeld);
         }
 
         // return true;
@@ -77,7 +85,7 @@ LRESULT CALLBACK h_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
                 return true;
             }
         }
-    } else {
+    } else if (!capturing) {
         if (uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN ||
             uMsg == WM_MBUTTONDOWN || uMsg == WM_MOUSEWHEEL) {
             int key = wParam;
@@ -90,13 +98,11 @@ LRESULT CALLBACK h_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
                 }
             }
 
-            SLBindingManager::get()->processKeyEvent(key, true, ctrlHeld,
-                                                     shiftHeld, altHeld);
+            bindings->processKeyEvent(key, true, ctrlHeld, shiftHeld, altHeld);
         } else if (uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP ||
                    uMsg == WM_MBUTTONUP) {
             int key = wParam;
-            SLBindingManager::get()->processKeyEvent(key, false, ctrlHeld,
-                                                     shiftHeld, altHeld);
+            bindings->processKeyEvent(key, false, ctrlHeld, shiftHeld, altHeld);
         }
     }
 

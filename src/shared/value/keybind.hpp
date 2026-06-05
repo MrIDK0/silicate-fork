@@ -46,6 +46,14 @@ class KeybindControl {
 
     virtual HashT getHash() = 0;
     const virtual std::string& getTag() = 0;
+
+    int getKey() const { return m_key; }
+    int getModifiers() const { return m_modifiers; }
+    void setBinding(int key, int modifiers) {
+        m_key = key;
+        m_modifiers = modifiers;
+    }
+
     virtual void applyValue(bool pressed, void* value, void* previous) = 0;
     virtual void fromString(const std::string& str) = 0;
     const virtual std::string toString() = 0;

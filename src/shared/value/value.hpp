@@ -1,5 +1,6 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include <algorithm>
 #include <functional>
 #include <glaze/json/read.hpp>
 #include <memory>
@@ -8,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "../key_names.hpp"
 #include "keybind.hpp"
 
 struct SLBindingInterface {
@@ -31,8 +33,7 @@ class SLBindingManager {
 
     SLBindingManager() = default;
 
-    bool m_needsNewKey = false;
-    cocos2d::enumKeyCodes m_newKey;
+    std::shared_ptr<KeybindControl> m_capturingKeybind;
 
     bool m_hasRead = false;
 
@@ -133,16 +134,61 @@ class SLBindingManager {
         }
     }
 
-    void wantNewKey() { m_needsNewKey = true; }
+    bool isCapturing() const { return m_capturingKeybind != nullptr; }
 
-    void setNewKey(cocos2d::enumKeyCodes key) { m_newKey = key; }
-    cocos2d::enumKeyCodes getNewKey() {
-        if (m_needsNewKey) {
-            m_needsNewKey = false;
-            return m_newKey;
-        } else {
-            return cocos2d::enumKeyCodes::KEY_None;
+    std::shared_ptr<KeybindControl> getCapturingKeybind() {
+        return m_capturingKeybind;
+    }
+
+    void startCapture(std::shared_ptr<KeybindControl> kb) {
+        m_capturingKeybind = kb;
+    }
+
+    void cancelCapture() { m_capturingKeybind = nullptr; }
+
+    std::vector<std::shared_ptr<KeybindControl>> getAllKeybinds() {
+        KeybindVector vec;
+        for (auto& [hash, kbs] : m_keybinds) {
+            for (auto& kb : kbs) {
+                vec.push_back(kb);
+            }
         }
+        return vec;
+    }
+
+    void removeKeybind(std::shared_ptr<KeybindControl> kb) {
+        KeybindControl::HashT hash = kb->getHash();
+        if (!m_keybinds.contains(hash)) return;
+
+        auto& vec = m_keybinds[hash];
+        vec.erase(std::remove(vec.begin(), vec.end(), kb), vec.end());
+        if (vec.empty()) {
+            m_keybinds.erase(hash);
+        }
+    }
+
+    void rebindKey(std::shared_ptr<KeybindControl> kb, int key, int modifiers) {
+        removeKeybind(kb);
+        kb->setBinding(key, modifiers);
+        registerKeybind(kb);
+
+        std::filesystem::path keybindsPath =
+            geode::Mod::get()->getConfigDir(true) / "keybinds.json";
+        writeToFile(keybindsPath);
+    }
+
+    bool tryCaptureKey(int key, bool ctrl, bool shift, bool alt) {
+        if (!m_capturingKeybind) return false;
+        if (isMouseButton(key)) return false;
+
+        int modifiers = 0;
+        if (ctrl) modifiers |= SLKeybind<void*>::MODIFIER_CTRL;
+        if (shift) modifiers |= SLKeybind<void*>::MODIFIER_SHIFT;
+        if (alt) modifiers |= SLKeybind<void*>::MODIFIER_ALT;
+
+        rebindKey(m_capturingKeybind, key, modifiers);
+        m_capturingKeybind = nullptr;
+        return true;
     }
 
     SLBindingManager(SLBindingManager const&) = delete;

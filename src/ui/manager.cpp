@@ -4,6 +4,7 @@
 
 #include <Geode/Geode.hpp>
 #include <algorithm>
+#include <unordered_map>
 #include <slc/formats/v3/atom.hpp>
 #include <slc/formats/v3/replay.hpp>
 #include <tabby.hpp>
@@ -20,7 +21,9 @@
 #include "render/renderer.hpp"
 #include "replay/system.hpp"
 #include "settings/settings.hpp"
+#include "shared/key_names.hpp"
 #include "shared/keys.hpp"
+#include "shared/value/value.hpp"
 #include "trajectory/trajectory.hpp"
 // #include "widgets/hotkey.hpp"
 #include "../../lib/tabby/lib/imgui_lib/imgui.h"
@@ -34,6 +37,22 @@
 #endif
 
 using namespace geode::prelude;
+
+static std::string keybindDisplayName(const std::string& tag) {
+    static const std::unordered_map<std::string, std::string> names = {
+        {"ui.visible", "Toggle Menu"},
+        {"updater.frame_advance", "Frame Advance"},
+        {"updater.advance_back", "Step Back"},
+        {"updater.advance_one", "Step Forward"},
+        {"trajectory.enabled", "Toggle Trajectory"},
+    };
+
+    if (names.contains(tag)) {
+        return names.at(tag);
+    }
+
+    return tag;
+}
 
 UIManager::UIManager() : m_font(nullptr), m_medium(nullptr), m_bold(nullptr) {}
 
@@ -569,6 +588,11 @@ void UIManager::draw() {
     auto bot = Bot::get();
     auto& cfg = tabby::TabbyGlobalCfg::get();
 
+    if (m_state.m_currentTab != UIState::UITab::Keybinds &&
+        SLBindingManager::get()->isCapturing()) {
+        SLBindingManager::get()->cancelCapture();
+    }
+
     ImGuiHookCtx::get().m_time += cocos2d::CCDirector::get()->getDeltaTime();
     const auto popupShaderFn = [&]() {
         renderBlurBg(12.0f, 1.5f, m_state.m_useShader->inner());
@@ -657,6 +681,13 @@ void UIManager::draw() {
                         m_state.m_currentTab == UIState::UITab::Render)
                         .pressed) {
                     m_state.m_currentTab = UIState::UITab::Render;
+                }
+
+                if (tabby::button_selector(
+                        "\uf11c    Keybinds##Tab",
+                        m_state.m_currentTab == UIState::UITab::Keybinds)
+                        .pressed) {
+                    m_state.m_currentTab = UIState::UITab::Keybinds;
                 }
 
                 if (tabby::button_selector(
@@ -1411,6 +1442,130 @@ void UIManager::draw() {
             //         tabby::divider();
             //     }
             // });
+            
+
+            //  ORIGINAL VERSION OF KEYBINDS USE THIS IF YOU WANT BUT THIS HAS WORSE DESIGN
+            
+            //tabby::tab(m_state.m_currentTab, UIState::UITab::Keybinds, [&]() {
+            //    tabby::text("Keybinds", m_bold);
+
+            //    tabby::divider(false);
+
+            //    auto* bindings = SLBindingManager::get();
+            //    auto keybinds = bindings->getAllKeybinds();
+
+            //    std::sort(keybinds.begin(), keybinds.end(),
+            //              [](const auto& a, const auto& b) {
+            //                  if (a->getTag() != b->getTag()) {
+            //                      return a->getTag() < b->getTag();
+            //                  }
+            //                  return a->getHash() < b->getHash();
+            //              });
+
+            //    for (auto& kb : keybinds) {
+            //        auto capturing = bindings->getCapturingKeybind();
+            //        bool isCapturing = capturing == kb;
+
+            //        tabby::fraction(2.0, [&]() {
+            //            tabby::text(keybindDisplayName(kb->getTag()), m_medium);
+
+            //            tabby::same_line();
+
+            //            std::string label =
+            //                isCapturing
+            //                    ? "Press a key..."
+            //                    : formatKeybind(kb->getKey(),
+            //                                    kb->getModifiers());
+
+            //            if (tabby::button_selector(label, isCapturing).pressed) {
+            //                if (isCapturing) {
+            //                    bindings->cancelCapture();
+            //                } else {
+            //                    bindings->startCapture(kb);
+            //                }
+            //            }
+            //        });
+            //    }
+            //});
+
+
+            // NEWER VERSION OF KEYBINDS this has been improved by Deepseek
+
+            tabby::tab(m_state.m_currentTab, UIState::UITab::Keybinds, [&]() {
+                tabby::text("Keybinds", m_bold);
+                tabby::divider(false);
+
+                auto* bindings = SLBindingManager::get();
+                auto keybinds = bindings->getAllKeybinds();
+
+                std::sort(keybinds.begin(), keybinds.end(),
+                          [](const auto& a, const auto& b) {
+                              if (a->getTag() != b->getTag()) {
+                                  return a->getTag() < b->getTag();
+                              }
+                              return a->getHash() < b->getHash();
+                          });
+
+                // Группировка по тегам строк (оставляем для порядка элементов)
+                std::unordered_map<std::string,
+                                   std::vector<std::shared_ptr<KeybindControl>>>
+                    groupedByTag;
+                for (auto& kb : keybinds) {
+                    groupedByTag[kb->getTag()].push_back(kb);
+                }
+
+                float scale = tabby::TabbyGlobalCfg::get().uiScale;
+
+                // Проходим по группам биндов
+                for (auto& [tag, binds] : groupedByTag) {
+                    // ИСПРАВЛЕНО: Убрали tabby::text(tag...), который выводил
+                    // системный код ("trajectory.enabled")
+
+                    for (auto& kb : binds) {
+                        auto capturing = bindings->getCapturingKeybind();
+                        bool isCapturing = capturing == kb;
+
+                        // Макет Дипсика с разделением строки пополам
+                        tabby::fraction(2.0, [&]() {
+                            // ЛЕВАЯ ЧАСТЬ: Только нормальное понятное название
+                            // бинда
+                            ImGui::AlignTextToFramePadding();
+                            tabby::text(keybindDisplayName(kb->getTag()),
+                                        m_medium);
+
+                            tabby::same_line();
+
+                            // ПРАВАЯ ЧАСТЬ: Идеальная кнопка с обводкой
+                            // Силиката
+                            std::string label =
+                                isCapturing ? "Press a key..."
+                                            : formatKeybind(kb->getKey(),
+                                                            kb->getModifiers());
+
+                            float availableWidth =
+                                ImGui::GetContentRegionAvail().x;
+                            ImGui::SetNextItemWidth(availableWidth);
+
+                            std::string buttonId = label + "##" + kb->getTag();
+
+                            if (tabby::button(buttonId).pressed) {
+                                if (isCapturing) {
+                                    bindings->cancelCapture();
+                                } else {
+                                    bindings->startCapture(kb);
+                                }
+                            }
+                        });
+
+                        // Отступ между строками биндов
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() +
+                                             (4.0f * scale));
+                    }
+
+                    // Аккуратная линия-разделитель между логическими блоками
+                    tabby::divider(false);
+                }
+            });
 
             tabby::tab(m_state.m_currentTab, UIState::UITab::Settings, [&]() {
                 tabby::text("Settings", m_bold);
@@ -1646,13 +1801,13 @@ void UIManager::draw() {
             m_medium);
 
         tabby::text(
-            "\uf192    \uefba    \uf03d    \uf121    \uf013    \uf078    "
-            "\uf054    \uf00c    \uf044    \uf51b    \uf004    \uf05f    "
-            "\uf01f");
+            "\uf192    \uefba    \uf03d    \uf121    \uf11c    \uf013    "
+            "\uf078    \uf054    \uf00c    \uf044    \uf51b    \uf004    "
+            "\uf05f    \uf01f");
         tabby::text(
-            "\uf192    \uefba    \uf03d    \uf121    \uf013    \uf078    "
-            "\uf054    \uf00c    \uf044    \uf51b    \uf004    \uf05f    "
-            "\uf01f",
+            "\uf192    \uefba    \uf03d    \uf121    \uf11c    \uf013    "
+            "\uf078    \uf054    \uf00c    \uf044    \uf51b    \uf004    "
+            "\uf05f    \uf01f",
             m_medium);
     });
 
