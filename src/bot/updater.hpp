@@ -26,6 +26,7 @@ class BotUpdater {
     bool _predictBestPath = false;
     bool _extrapolation = false;
     bool _layoutMode = false;
+    bool _layoutModeText = false;
     bool _noclip = false;
 
     std::forward_list<std::function<void(float)>> m_frozenScheduledFunctions;
@@ -67,6 +68,8 @@ class BotUpdater {
 
     SLValuePtr<bool> m_layoutMode =
         SLValue<bool>::create("updater.layout_mode", &_layoutMode);
+    SLValuePtr<bool> m_layoutModeText =
+        SLValue<bool>::create("updater.layout_mode_text", &_layoutModeText);
 
     double m_tpsOverflow = 0.0;
     bool m_shouldRender = true;

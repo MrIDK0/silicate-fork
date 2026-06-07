@@ -28,9 +28,22 @@ struct SLGameObject : Modify<SLGameObject, GameObject> {
         if (LevelEditorLayer::get()) return;
 
         if (Bot::get()->updater().m_layoutMode->inner()) {
-            if (m_objectType == GameObjectType::Decoration || m_isNoTouch ||
-                (m_objectID >= 506 && m_objectID <= 640) ||
-                OTHER_DECO_IDS.contains(m_objectID)) {
+            // Получаем состояние твоего тумблера из UI
+            bool showTextAndCounters =
+                Bot::get()->updater().m_layoutModeText->inner();
+
+            // ЕСЛИ тумблер ВКЛЮЧЕН и это текст (914) или каунтер (1615) -> НЕ
+            // скрываем их
+            if (showTextAndCounters &&
+                (m_objectID == 914 || m_objectID == 1615)) {
+                m_isHide = false;
+                m_isDontFade = true;
+                m_isDontEnter = true;
+            }
+            // ИНАЧЕ — стандартное скрытие Силиката для всего остального
+            else if (m_objectType == GameObjectType::Decoration ||
+                     m_isNoTouch || (m_objectID >= 506 && m_objectID <= 640) ||
+                     OTHER_DECO_IDS.contains(m_objectID)) {
                 m_isHide = true;
             } else {
                 m_isHide = false;

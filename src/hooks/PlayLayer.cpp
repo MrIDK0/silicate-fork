@@ -387,42 +387,34 @@ struct SLPlayLayer : Modify<SLPlayLayer, PlayLayer> {
 
         // Practice music sync should always be on
         m_practiceMusicSync = true;
-
         bot->updater().m_tpsOverflow = 0.0;
         bot->updater().m_respawnTimer = 2;
 
-        // Increment the frame, because update that'll increment the frame
-        // won't be called this death frame and we want to make it distinct
-        // from the frame just before
-        bot->updater().incrementFrame();
+        // фикс кароч если чел сдох нахуй то +1 фрейм окей ладно если он живой иди нахъуй
+        if (m_player1->m_isDead || m_player2->m_isDead) {
+            bot->updater().incrementFrame();
+        } // WARNING EXTREME FUCKING VIBECODE DETECTED PLEASE STAY AWAY
 
         // That distinct frame
         uint64_t deathFrame = bot->updater().getFrame();
-
         // Sanity check, should probably be already expected
         this->checkIfResetWasExpected(deathFrame);
-
         // This is basically a signal that'll determine whether to clean the
         // checkpoint array up again
         bool hasAddedCheckpoint = this->handleResetWithCheckpoints(deathFrame);
-
         // bot->replaySystem().m_forceNextInput = true;
         // this->processQueuedButtons();
         // bot->replaySystem().m_forceNextInput = false;
-
         // m_frameOnLastAttempt was updated, we may reset the frame now to the
         // first frame for this given attempt (will be 0 for non-ID)
         bot->updater().resetFrame();
-
         // Clear hitbox trail (maybe prune it up until this frame later?)
         bot->hitboxes().clearTrail();
-
         this->updateRandomSeedOnReset();
 
         // mod::emit(mod::events::LevelRestart{
         //     .intentional = bot->updater().m_canDie->inner(),
         // });
-
         PlayLayer::resetLevel();
 
         // Cleanup any checkpoints added to the array (should be just one!)
@@ -450,7 +442,6 @@ struct SLPlayLayer : Modify<SLPlayLayer, PlayLayer> {
 
         this->restoreHoldOnReset(deathFrame);
         this->addDeathInput(deathFrame);
-
         // Don't re-process inputs if the player has intentionally died
         if (!bot->updater().m_canDie->inner()) {
             bot->replaySystem().m_flipProcessingInputs = true;
@@ -460,7 +451,6 @@ struct SLPlayLayer : Modify<SLPlayLayer, PlayLayer> {
 
         // And then just restore ID state for subsequent deaths
         this->intentionalResetDone();
-
         // Respawned fully
         bot->practiceFix().m_hasDiedNormally = false;
         bot->practiceFix().m_isBackstep = false;

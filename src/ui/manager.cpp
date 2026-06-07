@@ -917,6 +917,14 @@ void UIManager::draw() {
                     Bot::get()->updater().m_layoutMode->notifyChange();
                 }
 
+                // Новый тоггл для текста и каунтеров
+                if (tabby::checkbox(
+                        "Toggle text and counters visibility##LayoutModeText",
+                        Bot::get()->updater().m_layoutModeText->inner())
+                        .pressed) {
+                    Bot::get()->updater().m_layoutModeText->notifyChange();
+                }
+
                 tabby::color("Background Color##LayoutMode",
                              m_state.m_bgColorState, popupShaderFn);
                 tabby::color("Ground Color##LayoutMode",
