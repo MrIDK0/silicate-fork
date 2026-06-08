@@ -28,7 +28,8 @@
       "resources/title_new.png",
       "resources/title_gay_new.png",
       "resources/title_trans_new.png",
-      "resources/title_jolly_new.png"
+      "resources/title_jolly_new.png",
+      "resources/title_party.png"
     ],
     "sprites": [
       "resources/silicate-button.png"

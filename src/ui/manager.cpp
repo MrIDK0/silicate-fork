@@ -211,6 +211,111 @@ static std::vector<Theme> s_themes = {
         }
         )",
           1.0),
+
+    Theme("Party", "title_party.png",
+          R"(#version 130
+        #extension GL_ARB_explicit_attrib_location : require
+        #extension GL_ARB_explicit_uniform_location : require
+        #define _ConfettiAmount 250
+        in vec2 v_texCoord;
+        out vec4 fragColor;
+        layout(location = 0) uniform sampler2D u_texture;
+        layout(location = 1) uniform vec2 u_texelSize;
+        layout(location = 2) uniform vec2 u_direction;
+        layout(location = 3) uniform vec4 u_window;
+        layout(location = 4) uniform float u_time;
+        
+        float rnd(float x) {
+            return fract(sin(dot(vec2(x+47.49,38.2467/(x+2.3)), vec2(12.9898, 78.233)))* (43758.5453));
+        }
+        
+        float drawCircle(vec2 center, float radius) {
+            vec2 uv = v_texCoord * vec2(1.0, u_texelSize.x / u_texelSize.y);
+            return 1.0 - smoothstep(0.0, radius, length(uv - center));
+        }
+        
+        void main() {
+            fragColor = texture2D(u_texture, v_texCoord);
+            vec2 uv = v_texCoord;
+            
+            // --- БАЗА ИЗ CYANIDE (ПЛАЗМА) ---
+            float gray = 0.299 * fragColor.x + 0.587 * fragColor.y + 0.114 * fragColor.z;
+            fragColor = mix(vec4(gray, gray, gray, 1.0), fragColor, 0.3);
+            fragColor -= vec4(0.3);
+            
+            float n = u_time * 0.4; // Ещё сильнее замедлили фон, чтобы не рябило
+            float x = uv.x * (sin(uv.y + n * 0.5) * 2.0);
+            float y = uv.y * (sin(uv.x + n * 0.2) * 2.0);
+            float xp = uv.x - 0.5 + sin(x * 3.0 + n - sin(y * 7.0 + n));
+            float yp = uv.y - 0.5 + sin(y * 3.0 + n + sin(x * 5.0 - n));
+            float eh = ((sqrt(xp * xp + yp * yp) * 5.0 + n));
+            
+            vec3 one = vec3(0.25, 0.08, 0.5) * 0.6; 
+            vec3 two = vec3(0.7, 0.08, 0.35) * 0.6; 
+            vec4 phase = vec4(mix(one, two, (sin(u_time * 0.3) + 1.0) / 2.0), 1.0);
+            
+            fragColor += phase;
+            fragColor += vec4(sin(eh*0.6+(y+n)*5.-n*5.)) * vec4(one, 1.0) * vec4(0.25);
+            fragColor += vec4(sin(eh*0.5+(y+n*1.1)*5.-n*5.)) * vec4(two, 1.0) * vec4(0.25);
+            
+            float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
+            vignette = clamp(pow(16.0 * vignette, 0.3), 0.0, 1.0);
+            fragColor.rgb *= vignette;
+            fragColor.a = 1.0;
+            
+            // --- НАСТРОЙКА ХЛОПУШЕК (Цикл 5 секунд — более размеренный) ---
+            float cycle = mod(u_time, 5.0);
+            // Плавный запуск от 0 до 1 с помощью синуса
+            float t = clamp(cycle / 2.5, 0.0, 1.0); 
+            float explosionProgress = sin(t * 1.57); // Плавная дуга полета
+            float fade = smoothstep(1.0, 0.4, t);    // Плавное исчезновение частиц к концу полета
+            
+            for (int i=0; i < _ConfettiAmount; i++) {
+                float j = float(i);
+                vec2 center = vec2(0.0);
+                float alphaMult = 1.0;
+                
+                // Разделяем частицы железно: 
+                // i < 180 — Обычное мирное падающее конфетти (никогда не исчезает)
+                if (i < 180) {
+                    float fallSpeed = 0.08 + rnd(cos(j)) * 0.12; // Сделали падение очень нежным
+                    center = vec2(
+                        rnd(j) + 0.05 * sin(u_time * 0.8 + j), 
+                        mod(sin(j) - fallSpeed * u_time, 0.65)
+                    );
+                } 
+                // i >= 180 — Это частицы НАСТОЯЩЕГО взрыва из хлопушек
+                else {
+                    alphaMult = fade * step(0.01, cycle); // Снаряды видны только во время бабаха
+                    
+                    if (mod(j, 2.0) == 0.0) {
+                        // ЛЕВАЯ ХЛОПУШКА: Вылетает из (0.0, 0.0) красивым веером направо вверх
+                        vec2 angle = vec2(0.5 + rnd(j)*0.5, 0.4 + rnd(j*1.3)*0.5);
+                        center = angle * explosionProgress * 0.7; 
+                    } else {
+                        // ПРАВАЯ ХЛОПУШКА: Вылетает из (1.0, 0.0) веером налево вверх
+                        vec2 angle = vec2(-0.5 - rnd(j)*0.5, 0.4 + rnd(j*1.3)*0.5);
+                        center = vec2(1.0, 0.0) + angle * explosionProgress * 0.7;
+                    }
+                }
+                
+                // Рендерим саму крупицу конфетти
+                float radius = 0.002 + rnd(j * 0.1) * 0.004;
+                float circle = drawCircle(center, radius) * 25.0 * alphaMult;
+                
+                // Цвета
+                vec3 confettiColor = vec3(
+                    rnd(j * 1.5),
+                    rnd(j * 2.7 + 1.0),
+                    rnd(j * 4.2 + 2.0)
+                );
+                
+                fragColor.rgb += circle * confettiColor * 0.4;
+            }
+        }
+        )",
+          1.0),
+
     Theme("Cyanide", "title_new.png",
           R"(#version 130
         #extension GL_ARB_explicit_attrib_location : require
