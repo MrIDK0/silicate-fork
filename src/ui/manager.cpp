@@ -238,7 +238,7 @@ static std::vector<Theme> s_themes = {
             fragColor = texture2D(u_texture, v_texCoord);
             vec2 uv = v_texCoord;
             
-            // --- БАЗА ИЗ CYANIDE (ПЛАЗМА) ---
+            // БАЗА ИЗ CYANIDE
             float gray = 0.299 * fragColor.x + 0.587 * fragColor.y + 0.114 * fragColor.z;
             fragColor = mix(vec4(gray, gray, gray, 1.0), fragColor, 0.3);
             fragColor -= vec4(0.3);
@@ -263,8 +263,7 @@ static std::vector<Theme> s_themes = {
             fragColor.rgb *= vignette;
             fragColor.a = 1.0;
             
-            // --- НАСТРОЙКА ХЛОПУШЕК (Цикл 5 секунд — более размеренный) ---
-            float cycle = mod(u_time, 5.0);
+            // Настройка хлопушек
             // Плавный запуск от 0 до 1 с помощью синуса
             float t = clamp(cycle / 2.5, 0.0, 1.0); 
             float explosionProgress = sin(t * 1.57); // Плавная дуга полета
