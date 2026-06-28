@@ -1,5 +1,7 @@
 #include "hitboxes.hpp"
 
+#include <Geode/Bindings.hpp>
+
 #include <Geode/Geode.hpp>
 
 #include "bot/bot.hpp"
@@ -250,7 +252,49 @@ static void drawObjectHitbox(cocos2d::CCDrawNode* node, GJBaseGameLayer* pl,
         }
 
         case GameObjectType::CollisionObject: {
-            return;  // this took me too long to figure out tbh
+            // wow 1816 object id so cool
+            if (object->m_objectID != 1816) return;
+
+            // whatever this does lol
+            if (object == pl->m_player1 || object == pl->m_player2 ||
+                Bot::get()->trajectory().isFakePlayer((PlayerObject*)object)) {
+                return;
+            }
+
+            // this thing is the fix
+            if (pl->m_objects && !pl->m_objects->containsObject(object)) {
+                return;
+            }
+
+
+            bool isTouchingPlayer = false;
+            auto blockRect = object->getObjectRect();
+
+            if (pl->m_player1 &&
+                blockRect.intersectsRect(pl->m_player1->getObjectRect())) {
+                isTouchingPlayer = true;
+            }
+
+            if (!isTouchingPlayer && pl->m_gameState.m_isDualMode &&
+                pl->m_player2) {
+                if (blockRect.intersectsRect(pl->m_player2->getObjectRect())) {
+                    isTouchingPlayer = true;
+                }
+            }
+
+            // hitbox color!!
+            cocos2d::ccColor4F strokeColor =
+                isTouchingPlayer ? cocos2d::ccColor4F{0.0f, 1.0f, 0.0f, 1.0f}
+                                 : cocos2d::ccColor4F{1.0f, 1.0f, 0.0f,
+                                                      1.0f};
+
+            cocos2d::ccColor4F fillColor = strokeColor;
+            fillColor.a = 0.25f;
+
+            node->drawRect(usingWidth(blockRect, width), fillColor, width,
+                           strokeColor);
+
+            break;
         }
 
         case GameObjectType::Solid: {
