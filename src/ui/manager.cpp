@@ -238,77 +238,66 @@ static std::vector<Theme> s_themes = {
             fragColor = texture2D(u_texture, v_texCoord);
             vec2 uv = v_texCoord;
             
-            // БАЗА ИЗ CYANIDE
             float gray = 0.299 * fragColor.x + 0.587 * fragColor.y + 0.114 * fragColor.z;
             fragColor = mix(vec4(gray, gray, gray, 1.0), fragColor, 0.3);
             fragColor -= vec4(0.3);
             
-            float n = u_time * 0.4; // Ещё сильнее замедлили фон, чтобы не рябило
+            float n = u_time * 0.4;
             float x = uv.x * (sin(uv.y + n * 0.5) * 2.0);
             float y = uv.y * (sin(uv.x + n * 0.2) * 2.0);
             float xp = uv.x - 0.5 + sin(x * 3.0 + n - sin(y * 7.0 + n));
             float yp = uv.y - 0.5 + sin(y * 3.0 + n + sin(x * 5.0 - n));
             float eh = ((sqrt(xp * xp + yp * yp) * 5.0 + n));
-            
             vec3 one = vec3(0.25, 0.08, 0.5) * 0.6; 
-            vec3 two = vec3(0.7, 0.08, 0.35) * 0.6; 
+            vec3 two = vec3(0.7, 0.08, 0.35) * 0.6;
             vec4 phase = vec4(mix(one, two, (sin(u_time * 0.3) + 1.0) / 2.0), 1.0);
             
             fragColor += phase;
             fragColor += vec4(sin(eh*0.6+(y+n)*5.-n*5.)) * vec4(one, 1.0) * vec4(0.25);
             fragColor += vec4(sin(eh*0.5+(y+n*1.1)*5.-n*5.)) * vec4(two, 1.0) * vec4(0.25);
-            
             float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
             vignette = clamp(pow(16.0 * vignette, 0.3), 0.0, 1.0);
             fragColor.rgb *= vignette;
             fragColor.a = 1.0;
             
-            // Настройка хлопушек
-            // Плавный запуск от 0 до 1 с помощью синуса
-            float t = clamp(cycle / 2.5, 0.0, 1.0); 
-            float explosionProgress = sin(t * 1.57); // Плавная дуга полета
-            float fade = smoothstep(1.0, 0.4, t);    // Плавное исчезновение частиц к концу полета
+            // Делаем бесконечный цикл хлопушек раз в 4 секунды от времени u_time
+            float loopTime = mod(u_time, 4.0);
+            float t = clamp(loopTime / 2.5, 0.0, 1.0);
+            float explosionProgress = sin(t * 1.57);
+            float fade = smoothstep(1.0, 0.4, t);
             
             for (int i=0; i < _ConfettiAmount; i++) {
                 float j = float(i);
                 vec2 center = vec2(0.0);
                 float alphaMult = 1.0;
                 
-                // Разделяем частицы железно: 
-                // i < 180 — Обычное мирное падающее конфетти (никогда не исчезает)
                 if (i < 180) {
-                    float fallSpeed = 0.08 + rnd(cos(j)) * 0.12; // Сделали падение очень нежным
+                    float fallSpeed = 0.08 + rnd(cos(j)) * 0.12;
                     center = vec2(
                         rnd(j) + 0.05 * sin(u_time * 0.8 + j), 
                         mod(sin(j) - fallSpeed * u_time, 0.65)
                     );
                 } 
-                // i >= 180 — Это частицы НАСТОЯЩЕГО взрыва из хлопушек
                 else {
-                    alphaMult = fade * step(0.01, cycle); // Снаряды видны только во время бабаха
+                    alphaMult = fade;
                     
                     if (mod(j, 2.0) == 0.0) {
-                        // ЛЕВАЯ ХЛОПУШКА: Вылетает из (0.0, 0.0) красивым веером направо вверх
                         vec2 angle = vec2(0.5 + rnd(j)*0.5, 0.4 + rnd(j*1.3)*0.5);
                         center = angle * explosionProgress * 0.7; 
                     } else {
-                        // ПРАВАЯ ХЛОПУШКА: Вылетает из (1.0, 0.0) веером налево вверх
                         vec2 angle = vec2(-0.5 - rnd(j)*0.5, 0.4 + rnd(j*1.3)*0.5);
                         center = vec2(1.0, 0.0) + angle * explosionProgress * 0.7;
                     }
                 }
                 
-                // Рендерим саму крупицу конфетти
                 float radius = 0.002 + rnd(j * 0.1) * 0.004;
                 float circle = drawCircle(center, radius) * 25.0 * alphaMult;
                 
-                // Цвета
                 vec3 confettiColor = vec3(
                     rnd(j * 1.5),
                     rnd(j * 2.7 + 1.0),
                     rnd(j * 4.2 + 2.0)
                 );
-                
                 fragColor.rgb += circle * confettiColor * 0.4;
             }
         }
@@ -377,6 +366,114 @@ static std::vector<Theme> s_themes = {
         }
         )",
           2.0),
+
+
+    Theme("Thunderstorm", "title_thunderstorm.png",
+          R"(#version 130
+        #extension GL_ARB_explicit_attrib_location : require
+        #extension GL_ARB_explicit_uniform_location : require
+        #define _RainAmount 140
+        in vec2 v_texCoord;
+        out vec4 fragColor;
+        layout(location = 0) uniform sampler2D u_texture;
+        layout(location = 1) uniform vec2 u_texelSize;
+        layout(location = 2) uniform vec2 u_direction;
+        layout(location = 3) uniform vec4 u_window;
+        layout(location = 4) uniform float u_time;
+        
+        float rnd(float x) {
+            return fract(sin(dot(vec2(x+47.49,38.2467/(x+2.3)), vec2(12.9898, 78.233))) * 43758.5453);
+        }
+        
+        void main() {
+            fragColor = texture2D(u_texture, v_texCoord);
+            
+            if (v_texCoord.x < u_window.x || v_texCoord.x > u_window.z ||
+                v_texCoord.y < u_window.y || v_texCoord.y > u_window.w) {
+                return;
+            }
+            
+            vec2 uv = (v_texCoord - u_window.xy) / (u_window.zw - u_window.xy);
+            vec3 stormBg = vec3(0.02, 0.02, 0.04);
+            
+            float cycleLength = 6.0;
+            float strikeCycle = mod(u_time, cycleLength);
+            float strikeSeed = floor(u_time / cycleLength);
+            float randomOffset = rnd(strikeSeed) * 1.5;
+            
+            float flash = 0.0;
+            float bolt = 0.0;
+            
+            // Длительность всей фазы грозы увеличена до 1.2 секунды для плавности
+            if (strikeCycle > randomOffset && strikeCycle < (randomOffset + 1.2)) {
+                float t = strikeCycle - randomOffset;
+                
+                // 1. ЭФФЕКТ ЖИВОГО МЕРЦАНИЯ (Flicker) в первые 0.25 сек
+                float flicker = sin(t * 80.0) * 0.4 + 0.6;
+                
+                // 2. АНИМАЦИЯ ПРОРАСТАНИЯ СВЕРХУ ВНИЗ
+                // Разряд движется вниз: если t мало, нижняя часть uv.y еще не пробита
+                float growth = smoothstep(0.0, 0.12, t);
+                float growthMask = step(uv.y, growth);
+                
+                // Позиция разряда
+                float boltX = 0.3 + rnd(strikeSeed * 2.4) * 0.4;
+                
+                // Живая геометрия нити
+                float wave = sin(uv.y * 15.0 + strikeSeed * 7.0) * 0.025 
+                           + cos(uv.y * 35.0 - strikeSeed) * 0.01;
+                float dist = abs(uv.x - (boltX + wave));
+                
+                // Основной удар (живет первые 0.3 секунды)
+                if (t < 0.3) {
+                    float boltFade = smoothstep(0.3, 0.0, t);
+                    // Белая нить ядра
+                    bolt += smoothstep(0.008, 0.0, dist) * 4.5 * boltFade * flicker * growthMask;
+                    // Близкое неоновое свечение
+                    bolt += smoothstep(0.05, 0.0, dist) * 1.2 * boltFade * flicker * growthMask;
+                }
+                
+                // 3. ПЛАВНОЕ АНАЛОГОВОЕ ЗАТУХАНИЕ (Эмбиент в комнате)
+                // Быстро загорается, но угасает по экспоненте в течение секунды
+                flash = exp(-t * 2.8) * 0.75;
+                
+                // Объёмный радиальный отблеск на стекле вокруг эпицентра
+                float roomGlow = smoothstep(1.3, 0.0, length(uv - vec2(boltX, 0.2))) * smoothstep(0.8, 0.0, t);
+                flash += roomGlow * 0.35;
+            }
+            
+            // Сочный спектр разряда (смещение в благородный грозовой ультрамарин)
+            vec3 lightningColor = vec3(0.65, 0.78, 1.0) * flash + vec3(0.9, 0.95, 1.0) * bolt;
+            vec3 finalBg = stormBg + lightningColor;
+            fragColor.rgb = mix(fragColor.rgb, finalBg, 0.85);
+            
+            // Отрегулированный наклон дождя
+            float wind = 0.05 - (u_direction.x * 0.22);
+            
+            // НАШ ОТЛИЧНЫЙ ДОЖДЬ
+            for (int i = 0; i < _RainAmount; i++) {
+                float j = float(i);
+                float speed = 1.5 + rnd(j * 1.5) * 0.7;
+                
+                vec2 dropPos = vec2(
+                    fract(rnd(j * 2.8) + wind * uv.y), 
+                    mod(rnd(j * 3.4) - u_time * speed, 1.0) 
+                );
+                
+                vec2 d = uv - dropPos;
+                d.x -= wind * d.y;
+                
+                float drop = smoothstep(0.045, 0.0, length(vec2(d.x * 32.0, d.y * 1.2)));
+                
+                vec3 rainGlowColor = vec3(0.55, 0.65, 0.85) * 2.5;
+                // Капли теперь круто ловят и импульсы мерцания, и плавный угасающий свет
+                fragColor.rgb += rainGlowColor * drop * (1.0 + flash * 4.0);
+            }
+            
+            fragColor.a = 1.0;
+        }
+        )",
+          1.0),
 };
 
 static uint64_t fnv1aHash(const std::vector<uint8_t>& data) {
@@ -1021,13 +1118,25 @@ void UIManager::draw() {
                     Bot::get()->updater().m_layoutMode->notifyChange();
                 }
 
-                // Новый тоггл для текста и каунтеров
+
+
                 if (tabby::checkbox(
                         "Toggle text and counters visibility##LayoutModeText",
                         Bot::get()->updater().m_layoutModeText->inner())
                         .pressed) {
                     Bot::get()->updater().m_layoutModeText->notifyChange();
                 }
+
+                if (tabby::checkbox(
+                        "Show Triggers##LayoutModeAllTriggers",
+                        Bot::get()->updater().m_layoutModeAllTriggers->inner())
+                        .pressed) {
+                    Bot::get()
+                        ->updater()
+                        .m_layoutModeAllTriggers->notifyChange();
+                }
+
+
 
                 tabby::color("Background Color##LayoutMode",
                              m_state.m_bgColorState, popupShaderFn);

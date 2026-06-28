@@ -27,6 +27,7 @@ class BotUpdater {
     bool _extrapolation = false;
     bool _layoutMode = false;
     bool _layoutModeText = false;
+    bool _layoutModeAllTriggers = false;
     bool _noclip = false;
 
     std::forward_list<std::function<void(float)>> m_frozenScheduledFunctions;
@@ -70,6 +71,8 @@ class BotUpdater {
         SLValue<bool>::create("updater.layout_mode", &_layoutMode);
     SLValuePtr<bool> m_layoutModeText =
         SLValue<bool>::create("updater.layout_mode_text", &_layoutModeText);
+    SLValuePtr<bool> m_layoutModeAllTriggers =
+        SLValue<bool>::create("updater.layout_mode_AllTriggers", &_layoutModeAllTriggers);
 
     double m_tpsOverflow = 0.0;
     bool m_shouldRender = true;
