@@ -8,11 +8,9 @@
 
 ## Fork Exclusive Features
 
-Unlike the original bot, this fork includes a powerful custom implementation for dual-player macro management inside the **Record** tab:
-
-* **Load 1p** — Loads and plays inputs *only* from the first player of the macro.
-* **Load 2p** — Loads and plays inputs *only* from the second player of the macro.
-* **Macro Merging** — Allows you to load Player 1 inputs from one macro, switch files, load Player 2 inputs from another macro, and seamlessly **merge them together** into a single dual-player macro inside the UI, ready to be saved.
+Unlike the original bot, this fork includes a powerful custom implementation for dual-player macro management inside the **Record** tab!
+New themes!
+And many more features or fixes!
 
 ---
 
