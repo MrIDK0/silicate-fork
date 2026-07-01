@@ -1,7 +1,6 @@
 #include "hitboxes.hpp"
 
 #include <Geode/Bindings.hpp>
-
 #include <Geode/Geode.hpp>
 
 #include "bot/bot.hpp"
@@ -199,7 +198,6 @@ static void drawObjectHitbox(cocos2d::CCDrawNode* node, GJBaseGameLayer* pl,
                              GameObject* object,
                              SLSettings::HitboxSettings& settings) {
     using Type = SLSettings::HitboxSettings::Type;
-    const float width = settings.width / pl->m_gameState.m_cameraZoom;
 
     if (object->m_isGroupDisabled || !object->m_isActivated ||
         object->m_objectType == GameObjectType::Decoration)
@@ -210,7 +208,37 @@ static void drawObjectHitbox(cocos2d::CCDrawNode* node, GJBaseGameLayer* pl,
         return;
     }
 
+    cocos2d::ccColor4F strokeColor = CC_COLOR(Type::Interactable);
+    cocos2d::ccColor4F fillColor = CC_FILL_COLOR(Type::Interactable);
+    float width = settings.width / pl->m_gameState.m_cameraZoom;
+
     switch (object->m_objectType) {
+        case GameObjectType::CollisionObject: {
+            if (object->m_objectID == 1816) {
+                // fix the bug where the hitbox that follows the player is shown when its just useless so dont draw it lmao
+                if (pl->m_objects && !pl->m_objects->containsObject(object)) {
+                    return;
+                }
+
+                // make the hitbox green if players touches it fuck it im not making it work like its supposed to be like when activated and shi
+                auto objRect = object->getObjectRect();
+                bool isTouching =
+                    (pl->m_player1 &&
+                     pl->m_player1->getObjectRect().intersectsRect(objRect)) ||
+                    (pl->m_gameState.m_isDualMode && pl->m_player2 &&
+                     pl->m_player2->getObjectRect().intersectsRect(objRect));
+
+                if (isTouching) {
+                    strokeColor = cocos2d::ccColor4F{0.0f, 1.0f, 0.0f, 1.0f};
+
+                    float opacity =
+                        settings.categories[Type::Interactable].fillOpacity;
+                    fillColor = cocos2d::ccColor4F{0.0f, 1.0f, 0.0f, opacity};
+                }
+            }
+            [[fallthrough]];
+        }
+
         default: {
             if (object->hasBeenActivatedByPlayer(pl->m_player1) &&
                 (!pl->m_gameState.m_isDualMode ||
@@ -234,66 +262,18 @@ static void drawObjectHitbox(cocos2d::CCDrawNode* node, GJBaseGameLayer* pl,
 
             if (auto ob = object->m_orientedBox; ob) {
                 if (HB_ENABLED(Type::Interactable)) {
-                    node->drawPolygon(ob->m_corners.data(), 4,
-                                      CC_FILL_COLOR(Type::Interactable), width,
-                                      CC_COLOR(Type::Interactable));
+                    node->drawPolygon(ob->m_corners.data(), 4, fillColor, width,
+                                      strokeColor);
                 }
             } else {
                 if (HB_ENABLED(Type::Interactable)) {
                     node->drawRect(usingWidth(object->getObjectRect(), width),
-                                   CC_FILL_COLOR(Type::Interactable), width,
-                                   CC_COLOR(Type::Interactable));
+                                   fillColor, width, strokeColor);
                 }
             }
 
             object->m_isObjectRectDirty = isObjectRectDirty;
             object->m_boxOffsetCalculated = boxOffsetCalculated;
-            break;
-        }
-
-        case GameObjectType::CollisionObject: {
-            // wow 1816 object id so cool
-            if (object->m_objectID != 1816) return;
-
-            // whatever this does lol
-            if (object == pl->m_player1 || object == pl->m_player2 ||
-                Bot::get()->trajectory().isFakePlayer((PlayerObject*)object)) {
-                return;
-            }
-
-            // this thing is the fix
-            if (pl->m_objects && !pl->m_objects->containsObject(object)) {
-                return;
-            }
-
-
-            bool isTouchingPlayer = false;
-            auto blockRect = object->getObjectRect();
-
-            if (pl->m_player1 &&
-                blockRect.intersectsRect(pl->m_player1->getObjectRect())) {
-                isTouchingPlayer = true;
-            }
-
-            if (!isTouchingPlayer && pl->m_gameState.m_isDualMode &&
-                pl->m_player2) {
-                if (blockRect.intersectsRect(pl->m_player2->getObjectRect())) {
-                    isTouchingPlayer = true;
-                }
-            }
-
-            // hitbox color!!
-            cocos2d::ccColor4F strokeColor =
-                isTouchingPlayer ? cocos2d::ccColor4F{0.0f, 1.0f, 0.0f, 1.0f}
-                                 : cocos2d::ccColor4F{1.0f, 1.0f, 0.0f,
-                                                      1.0f};
-
-            cocos2d::ccColor4F fillColor = strokeColor;
-            fillColor.a = 0.25f;
-
-            node->drawRect(usingWidth(blockRect, width), fillColor, width,
-                           strokeColor);
-
             break;
         }
 
@@ -362,7 +342,6 @@ static void drawObjectHitbox(cocos2d::CCDrawNode* node, GJBaseGameLayer* pl,
             if (object == pl->m_anticheatSpike) return;
             if (!HB_ENABLED(Type::Hazard)) return;
 
-            // ripped from updateDebugDraw
             bool isObjectRectDirty = object->m_isObjectRectDirty;
             bool boxOffsetCalculated = object->m_boxOffsetCalculated;
 
@@ -413,14 +392,6 @@ void Hitboxes::draw(GJBaseGameLayer* pl) {
             -pl->m_objectLayer->getPositionY() / scale - pl->m_cameraHeight;
         float maxY =
             -pl->m_objectLayer->getPositionY() / scale + pl->m_cameraHeight;
-        // auto rect = cocos2d::CCRect(
-        //     minX, minY,
-        //     maxX - minX, maxY - minY
-        // );
-
-        // m_innerTrailDrawNode->enableDrawArea(rect);
-        // m_rotatedTrailDrawNode->enableDrawArea(rect);
-        // m_solidTrailDrawNode->enableDrawArea(rect);
 
         auto& settings = SLSettings::get()->hitboxes;
         using Type = SLSettings::HitboxSettings::Type;
@@ -435,7 +406,6 @@ void Hitboxes::draw(GJBaseGameLayer* pl) {
 
         int frequency = std::max((int)frequencyLevel, 1);
 
-        // geode::log::info("drawing rotated trail...");
         if (HB_ENABLED(Type::PlayerRotated)) {
             float* colors =
                 settings.categories[Type::PlayerRotated].colors.data();
@@ -458,7 +428,6 @@ void Hitboxes::draw(GJBaseGameLayer* pl) {
             }
         }
 
-        // geode::log::info("drawing normal trail...");
         if (HB_ENABLED(Type::Player)) {
             float* colors = settings.categories[Type::Player].colors.data();
             float fillOpacity = settings.categories[Type::Player].fillOpacity;
@@ -501,7 +470,6 @@ void Hitboxes::draw(GJBaseGameLayer* pl) {
             }
         }
 
-        // geode::log::info("drawing inner trail...");
         if (HB_ENABLED(Type::PlayerInner)) {
             float* colors =
                 settings.categories[Type::PlayerInner].colors.data();
