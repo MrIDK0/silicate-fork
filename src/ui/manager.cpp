@@ -1620,6 +1620,8 @@ void UIManager::draw() {
                             1.0, 0.01, "{:.2f}");
                 tabby::checkbox("Record 1st Attempt Pause",
                                 renderer->m_settings.m_firstAttemptPause);
+                tabby::checkbox("Show Labels During Rendering",
+                    renderer->m_settings.m_showLabelsWhileRendering);
 
                 tabby::input_text("FFmpeg Args", "-preset slow ...",
                                   renderer->m_settings.m_renderArgs);

@@ -38,6 +38,7 @@ struct RendererSettings {
     double m_sfxVolume = 1.0;
 
     bool m_firstAttemptPause = false;
+    bool m_showLabelsWhileRendering = false;
 };
 
 template <>
@@ -49,7 +50,8 @@ struct glz::meta<RendererSettings> {
         "after_end_time", &T::m_afterEndTime, "color_fix", &T::m_colorFix,
         "render_args", &T::m_renderArgs, "output_path", hide{&T::m_outputPath},
         "music_volume", &T::m_musicVolume, "sfx_volume", &T::m_sfxVolume,
-        "record_paused", &T::m_firstAttemptPause);
+        "record_paused", &T::m_firstAttemptPause,
+        "show_labels_while_rendering", &T::m_showLabelsWhileRendering);
 };
 
 #define SL_AV_PTR(type) std::unique_ptr<type, void (*)(type*)>

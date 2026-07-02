@@ -282,7 +282,9 @@ void BotUpdater::runUpdates(std::function<void(float)> update, float realDt,
         update(realDt * m_speedhack->inner());
     }
 
-    bool disableLabels = Renderer::get()->isRecording();
+    bool disableLabels =
+        Renderer::get()->isRecording() &&
+        !Renderer::get()->m_settings.m_showLabelsWhileRendering;
 
     bot->labels().update(disableLabels);
     bot->trajectory().update(PlayLayer::get());
