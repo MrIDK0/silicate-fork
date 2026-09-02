@@ -2,7 +2,10 @@
 #include "imgui.h"
 #include <print>
 
+#if defined(_WIN32) || defined(_WIN64)
 #include <Windows.h>
+#endif
+
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_opengl3.h"
 
